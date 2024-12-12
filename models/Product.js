@@ -23,7 +23,8 @@ const ProductSchema = new mongoose.Schema({
         default: 0
     },
     category: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Category',
         required: true
     },
     tags: {
@@ -35,5 +36,8 @@ const ProductSchema = new mongoose.Schema({
         required: true
     }
 }, { timestamps: true })
+
+ProductSchema.index({ title: 'text', description: 'text', tags: 'text' });
+ProductSchema.index({ category: 1 });
 
 module.exports = mongoose.model('Product', ProductSchema)

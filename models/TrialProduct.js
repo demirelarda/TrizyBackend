@@ -23,7 +23,8 @@ const TrialProductSchema = new mongoose.Schema({
         default: 0
     },
     category: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Category',
         required: true
     },
     tags: {
@@ -31,5 +32,8 @@ const TrialProductSchema = new mongoose.Schema({
         default: []
     }
 }, { timestamps: true });
+
+TrialProductSchema.index({ title: 'text', description: 'text', tags: 'text' });
+TrialProductSchema.index({ category: 1 });
 
 module.exports = mongoose.model('TrialProduct', TrialProductSchema);
