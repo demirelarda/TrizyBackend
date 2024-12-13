@@ -10,24 +10,22 @@ exports.getDeals = async (req, res) => {
 }
 
 exports.createDeal = async (req, res) => {
-  try {
-    const { dealOrder, imageUrl, title, description, action, aspectRatio } = req.body
-
-    const newDeal = new Deal({
-      dealOrder,
-      imageUrl,
-      title,
-      description,
-      action,
-      aspectRatio,
-    })
-
-    await newDeal.save()
-    res.status(201).json({ message: 'Deal created successfully', deal: newDeal })
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to create deal', error })
+    try {
+      const deals = req.body
+  
+      const dealsToCreate = Array.isArray(deals) ? deals : [deals]
+  
+      const createdDeals = await Deal.insertMany(dealsToCreate)
+  
+      res.status(201).json({ message: 'Deals created successfully', deals: createdDeals })
+    } catch (error) {
+      if (error.code === 11000) {
+        res.status(400).json({ message: 'Deal order must be unique', error })
+      } else {
+        res.status(500).json({ message: 'Failed to create deals', error })
+      }
+    }
   }
-}
 
 exports.updateDeal = async (req, res) => {
   try {
