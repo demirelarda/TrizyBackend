@@ -8,6 +8,7 @@ const dotenv = require('dotenv')
 dotenv.config()
 
 const authRoute = require('./routes/auth')
+const dealsRoute = require('./routes/deals')
 
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log("Connected to the MongoDB")).catch((err) => { console.log(err) })
@@ -16,6 +17,7 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use('/api', authRoute)
+app.use('/api/deals', dealsRoute)
 
 
 const PORT = process.env.PORT || 3000
