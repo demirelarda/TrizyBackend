@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
 const ReviewSchema = new mongoose.Schema({
     forProduct: {
@@ -19,6 +19,6 @@ const ReviewSchema = new mongoose.Schema({
         type: String,
         default: ''
     }
-}, { timestamps: true });
+}, { timestamps: true })
 
-module.exports = mongoose.model('Review', ReviewSchema);
+module.exports = mongoose.model('Review', ReviewSchema)

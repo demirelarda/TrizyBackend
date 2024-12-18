@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
 const TrialSchema = new mongoose.Schema({
     userId: {
@@ -29,6 +29,6 @@ const TrialSchema = new mongoose.Schema({
         type: String,
         default: null
     }
-}, { timestamps: true });
+}, { timestamps: true })
 
-module.exports = mongoose.model('Trial', TrialSchema);
+module.exports = mongoose.model('Trial', TrialSchema)

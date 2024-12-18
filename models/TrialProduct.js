@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
 const TrialProductSchema = new mongoose.Schema({
     imageURLs: { 
@@ -31,9 +31,9 @@ const TrialProductSchema = new mongoose.Schema({
         type: [String],
         default: []
     }
-}, { timestamps: true });
+}, { timestamps: true })
 
-TrialProductSchema.index({ title: 'text', description: 'text', tags: 'text' });
-TrialProductSchema.index({ category: 1 });
+TrialProductSchema.index({ title: 'text', description: 'text', tags: 'text' })
+TrialProductSchema.index({ category: 1 })
 
-module.exports = mongoose.model('TrialProduct', TrialProductSchema);
+module.exports = mongoose.model('TrialProduct', TrialProductSchema)

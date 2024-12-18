@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
 const DealSchema = new mongoose.Schema(
   {
@@ -30,6 +30,6 @@ const DealSchema = new mongoose.Schema(
     },
   },
   { timestamps: true }
-);
+)
 
-module.exports = mongoose.model('Deal', DealSchema);
+module.exports = mongoose.model('Deal', DealSchema)
