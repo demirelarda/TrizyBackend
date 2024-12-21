@@ -11,6 +11,7 @@ const authRoute = require('./routes/auth')
 const dealsRoute = require('./routes/deals')
 const categoryRoute = require('./routes/categories')
 const productsRoute = require('./routes/products')
+const cartRoute = require('./routes/cart')
 
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log("Connected to the MongoDB")).catch((err) => { console.log(err) })
@@ -22,6 +23,7 @@ app.use('/api', authRoute)
 app.use('/api/deals', dealsRoute)
 app.use('/api/categories', categoryRoute)
 app.use('/api/products', productsRoute)
+app.use('/api/carts', cartRoute)
 
 
 const PORT = process.env.PORT || 3000

@@ -1,41 +1,56 @@
 const User = require("../models/User")
 const CryptoJS = require("crypto-js")
 const jwt = require("jsonwebtoken")
+const { createEmptyCartForUser } = require("../controllers/cartController")
 
 exports.createUser = async (req, res) => {
-    const newUser = new User({
-        userFirstName: req.body.userFirstName,
-        userLastName: req.body.userLastName,
-        email: req.body.email,
-        password: CryptoJS.AES.encrypt(req.body.password, process.env.SECRET).toString()
-    })
+  const newUser = new User({
+    userFirstName: req.body.userFirstName,
+    userLastName: req.body.userLastName,
+    email: req.body.email,
+    password: CryptoJS.AES.encrypt(req.body.password, process.env.SECRET).toString(),
+  })
 
-    try {
-        const savedUser = await newUser.save()
+  try {
+    const savedUser = await newUser.save()
 
-        // Access Token
-        const accessToken = jwt.sign({
-            id: savedUser._id,
-            email: savedUser.email,
-            userFirstName: savedUser.userFirstName,
-            userLastName: savedUser.userLastName,
-            emailVerified: savedUser.emailVerified
-        }, process.env.JWT_SEC) //{ expiresIn: '45m' }
+    // create an empty cart for the user
+    const cartResult = await createEmptyCartForUser(savedUser._id)
 
-        // Refresh Token
-        const refreshToken = jwt.sign({
-            id: savedUser._id,
-        }, process.env.JWT_REFRESH_SEC) //{ expiresIn: '7d' }
-
-        savedUser.refreshToken = refreshToken
-        await savedUser.save()
-
-        const { password, ...others } = savedUser._doc
-
-        res.status(201).json({ ...others, accessToken, refreshToken })
-    } catch (error) {
-        res.status(500).json(error)
+    if (!cartResult.success) {
+      // if cart creation fails delete the user and return an error response
+      await User.findByIdAndDelete(savedUser._id)
+      return res.status(500).json({ success: false, message: "Signup failed: Unable to create user cart." })
     }
+
+    const accessToken = jwt.sign(
+      {
+        id: savedUser._id,
+        email: savedUser.email,
+        userFirstName: savedUser.userFirstName,
+        userLastName: savedUser.userLastName,
+        emailVerified: savedUser.emailVerified,
+      },
+      process.env.JWT_SEC //{ expiresIn: '45m' }
+    )
+
+    const refreshToken = jwt.sign(
+      {
+        id: savedUser._id,
+      },
+      process.env.JWT_REFRESH_SEC //{ expiresIn: '7d' }
+    )
+
+    savedUser.refreshToken = refreshToken
+    await savedUser.save()
+
+    const { password, ...others } = savedUser._doc
+
+    res.status(201).json({ ...others, accessToken, refreshToken })
+  } catch (error) {
+    console.error("Error during user signup:", error)
+    res.status(500).json({ success: false, message: "Signup failed", error: error.message })
+  }
 }
 
 exports.loginUser = async (req, res) => {
