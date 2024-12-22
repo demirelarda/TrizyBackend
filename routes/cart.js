@@ -7,6 +7,8 @@ router.get('/get-cart', verifyToken, cartController.getCart)
 
 router.post('/add-item', verifyToken, cartController.addItemToCart)
 
+router.post('/add-item-on-feed', verifyToken, cartController.addItemToCartOnFeed)
+
 router.patch('/decrement-quantity', verifyToken, cartController.decrementQuantity)
 
 router.delete('/delete-item/:productId', verifyToken, cartController.deleteItemFromCart)
