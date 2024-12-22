@@ -11,6 +11,7 @@ const categoryRoute = require('./routes/categories')
 const productsRoute = require('./routes/products')
 const cartRoute = require('./routes/cart')
 const paymentRoute = require('./routes/payments')
+const addressRoute = require('./routes/address')
 
 mongoose
   .connect(process.env.MONGODB_URI)
@@ -30,6 +31,7 @@ app.use('/api/deals', dealsRoute)
 app.use('/api/categories', categoryRoute)
 app.use('/api/products', productsRoute)
 app.use('/api/carts', cartRoute)
+app.use('/api/address',addressRoute)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
