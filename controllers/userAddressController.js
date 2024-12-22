@@ -5,6 +5,8 @@ exports.createAddress = async (req, res) => {
     const userId = req.user.id
     const { fullName, phoneNumber, address, city, state, postalCode, country, addressType, isDefault } = req.body
 
+    const hasDefaultAddress = await UserAddress.exists({ userId, isDefault: true })
+
     const newAddress = new UserAddress({
       userId,
       fullName,
@@ -15,10 +17,15 @@ exports.createAddress = async (req, res) => {
       postalCode,
       country,
       addressType,
-      isDefault,
+      isDefault: isDefault || !hasDefaultAddress,
     })
 
     await newAddress.save()
+
+    if (newAddress.isDefault) {
+      await checkForDefaultAddress(userId, newAddress._id)
+    }
+
     res.status(201).json({
       success: true,
       message: 'Address created successfully',
@@ -126,6 +133,10 @@ exports.updateAddress = async (req, res) => {
 
     await addressToUpdate.save()
 
+    if (addressToUpdate.isDefault) {
+      await checkForDefaultAddress(userId, addressToUpdate._id)
+    }
+
     res.status(200).json({
       success: true,
       message: 'Address updated successfully',
@@ -138,5 +149,16 @@ exports.updateAddress = async (req, res) => {
       message: 'Failed to update address',
       error: error.message,
     })
+  }
+}
+
+
+const checkForDefaultAddress = async (userId, addressIdToExclude = null) => {
+  try {
+    const filter = { userId, _id: { $ne: addressIdToExclude } }
+    await UserAddress.updateMany(filter, { isDefault: false })
+  } catch (error) {
+    console.error('Error updating default addresses:', error)
+    throw new Error('Failed to update default addresses')
   }
 }
