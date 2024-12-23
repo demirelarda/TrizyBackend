@@ -153,6 +153,35 @@ exports.updateAddress = async (req, res) => {
 }
 
 
+exports.getDefaultAddress = async (req, res) => {
+  try {
+    const userId = req.user.id
+
+    const defaultAddress = await UserAddress.findOne({ userId, isDefault: true })
+
+    if (!defaultAddress) {
+      return res.status(404).json({
+        success: false,
+        message: 'No default address found',
+      })
+    }
+
+    res.status(200).json({
+      success: true,
+      address: defaultAddress,
+    })
+  } catch (error) {
+    console.error('Error fetching default address:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch default address',
+      error: error.message,
+    })
+  }
+}
+
+
+
 const checkForDefaultAddress = async (userId, addressIdToExclude = null) => {
   try {
     const filter = { userId, _id: { $ne: addressIdToExclude } }

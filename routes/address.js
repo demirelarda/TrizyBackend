@@ -7,6 +7,8 @@ router.post('/create-user-address', verifyToken, userAddressController.createAdd
 
 router.get('/get-all-addresses', verifyToken, userAddressController.getUserAddresses)
 
+router.get('/get-default-address', verifyToken, userAddressController.getDefaultAddress)
+
 router.delete('/delete-address/:addressId', verifyToken, userAddressController.deleteAddress)
 
 router.put('/update-address/:addressId', verifyToken, userAddressController.updateAddress)
