@@ -3,7 +3,6 @@ const Cart = require('../models/Cart')
 const Product = require('../models/Product')
 const Order = require('../models/Order')
 
-//TODO: MOVE THIS TO A SEPERATE CONTROLLER
 exports.createPaymentIntent = async (req, res) => {
   try {
     const userId = req.user.id
@@ -124,6 +123,8 @@ exports.stripeWebhook = async (req, res) => {
           cart.items = []
           await cart.save()
   
+          // TODO: DECREMENT PRODUCT STOCK COUNTS
+
           console.log('Order created successfully for user:', userId)
         } catch (error) {
           console.error('Error creating order:', error.message)
@@ -140,4 +141,41 @@ exports.stripeWebhook = async (req, res) => {
     }
   
     res.status(200).json({ received: true })
+}
+
+
+exports.checkOrderStatus = async (req, res) => {
+  try {
+    const userId = req.user.id
+    const { paymentIntentId } = req.query
+
+    if (!paymentIntentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'PaymentIntent ID is required.',
+      })
+    }
+
+    const order = await Order.findOne({ userId, paymentIntentId })
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found. Payment might still be processing.',
+      })
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Order found.',
+      order,
+    })
+  } catch (error) {
+    console.error('Error checking order status:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check order status.',
+      error: error.message,
+    })
+  }
 }
