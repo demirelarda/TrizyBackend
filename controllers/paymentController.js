@@ -68,79 +68,105 @@ exports.createPaymentIntent = async (req, res) => {
   }
 }
 
-exports.stripeWebhook = async (req, res) => {
-    const sig = req.headers['stripe-signature']
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
-  
-    let event
-  
-    try {
-      // Verify the event with Stripe
-      event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret)
-    } catch (err) {
-      console.error('Webhook signature verification failed:', err.message)
-      return res.status(400).send(`Webhook Error: ${err.message}`)
-    }
-  
-    console.log(`Webhook received: ${event.type}`)
-  
-    switch (event.type) {
-      case 'payment_intent.succeeded':
-        const paymentIntent = event.data.object
-        const userId = paymentIntent.metadata.userId
-  
-        try {
-          // Get the user's cart
-          const cart = await Cart.findOne({ ownerId: userId }).populate({
-            path: 'items.productId',
-            select: 'price title',
-          })
-  
-          if (!cart || cart.items.length === 0) {
-            console.error('Cart is empty for user:', userId)
-            break
-          }
-  
-          // Create the order
-          const orderItems = cart.items.map((item) => ({
-            productId: item.productId._id,
-            quantity: item.quantity,
-            price: item.productId.price,
-          }))
-  
-          const newOrder = new Order({
-            userId: userId,
-            paymentIntentId: paymentIntent.id,
-            amount: paymentIntent.amount / 100,
-            currency: paymentIntent.currency,
-            status: 'pending',
-            items: orderItems,
-          })
-  
-          await newOrder.save()
-  
-          // Clear the user cart
-          cart.items = []
-          await cart.save()
-  
-          // TODO: DECREMENT PRODUCT STOCK COUNTS
+const fetchCartAndCreateOrder = async (userId, paymentIntent) => {
+  try {
+    // Get the user's cart
+    const cart = await Cart.findOne({ ownerId: userId }).populate({
+      path: 'items.productId',
+      select: 'price title stockCount',
+    })
 
-          console.log('Order created successfully for user:', userId)
-        } catch (error) {
-          console.error('Error creating order:', error.message)
-        }
-        break
-  
-      case 'payment_intent.payment_failed':
-        const failedIntent = event.data.object
-        console.error(`Payment failed for PaymentIntent: ${failedIntent.id}`)
-        break
-  
-      default:
-        console.log(`Unhandled event type: ${event.type}`)
+    if (!cart || cart.items.length === 0) {
+      console.error('Cart is empty for user:', userId)
+      return { success: false, message: 'Cart is empty' }
     }
-  
-    res.status(200).json({ received: true })
+
+    const orderItems = cart.items.map((item) => ({
+      productId: item.productId._id,
+      quantity: item.quantity,
+      price: item.productId.price,
+    }))
+
+    const newOrder = new Order({
+      userId: userId,
+      paymentIntentId: paymentIntent.id,
+      amount: paymentIntent.amount / 100,
+      currency: paymentIntent.currency,
+      status: 'pending',
+      items: orderItems,
+    })
+
+    await newOrder.save()
+
+    cart.items = []
+    await cart.save()
+
+    for (const item of orderItems) {
+      const product = await Product.findById(item.productId)
+
+      if (product) {
+        if (product.stockCount < item.quantity) {
+          console.error(
+            `Insufficient stock for product ${product.title} (ID: ${item.productId})`
+          )
+          throw new Error(
+            `Insufficient stock for product ${product.title} (ID: ${item.productId})`
+          )
+        }
+
+        product.stockCount -= item.quantity
+        await product.save()
+      }
+    }
+
+    console.log('Order created successfully and stock counts updated for user:', userId)
+    return { success: true, order: newOrder }
+  } catch (error) {
+    console.error('Error creating order or updating stock counts:', error.message)
+    return { success: false, message: error.message }
+  }
+}
+
+exports.stripeWebhook = async (req, res) => {
+  const sig = req.headers['stripe-signature']
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
+
+  let event
+
+  try {
+    // Verify the event with Stripe
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret)
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err.message)
+    return res.status(400).send(`Webhook Error: ${err.message}`)
+  }
+
+  console.log(`Webhook received: ${event.type}`)
+
+  switch (event.type) {
+    case 'payment_intent.succeeded': {
+      const paymentIntent = event.data.object
+      const userId = paymentIntent.metadata.userId
+
+      const result = await fetchCartAndCreateOrder(userId, paymentIntent)
+
+      if (!result.success) {
+        console.error('Order creation failed:', result.message)
+      }
+      break
+    }
+
+    case 'payment_intent.payment_failed': {
+      const failedIntent = event.data.object
+      console.error(`Payment failed for PaymentIntent: ${failedIntent.id}`)
+      break
+    }
+
+    default:
+      console.log(`Unhandled event type: ${event.type}`)
+  }
+
+  res.status(200).json({ received: true })
 }
 
 
