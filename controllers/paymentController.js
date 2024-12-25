@@ -2,6 +2,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const Cart = require('../models/Cart')
 const Product = require('../models/Product')
 const Order = require('../models/Order')
+const UserAddress = require('./models/UserAddress')
 
 exports.createPaymentIntent = async (req, res) => {
   try {
@@ -70,6 +71,13 @@ exports.createPaymentIntent = async (req, res) => {
 
 const fetchCartAndCreateOrder = async (userId, paymentIntent) => {
   try {
+    // Fetch the user's default address
+    const defaultAddress = await fetchUserDefaultAddress(userId)
+
+    if (!defaultAddress) {
+      return { success: false, message: 'Default address not found' }
+    }
+
     // Get the user's cart
     const cart = await Cart.findOne({ ownerId: userId }).populate({
       path: 'items.productId',
@@ -89,6 +97,7 @@ const fetchCartAndCreateOrder = async (userId, paymentIntent) => {
 
     const newOrder = new Order({
       userId: userId,
+      deliveryAddressId: defaultAddress._id,
       paymentIntentId: paymentIntent.id,
       amount: paymentIntent.amount / 100,
       currency: paymentIntent.currency,
@@ -101,6 +110,7 @@ const fetchCartAndCreateOrder = async (userId, paymentIntent) => {
     cart.items = []
     await cart.save()
 
+    // Decrement product stock counts
     for (const item of orderItems) {
       const product = await Product.findById(item.productId)
 
@@ -124,6 +134,24 @@ const fetchCartAndCreateOrder = async (userId, paymentIntent) => {
   } catch (error) {
     console.error('Error creating order or updating stock counts:', error.message)
     return { success: false, message: error.message }
+  }
+}
+
+const fetchUserDefaultAddress = async (userId) => {
+  try {
+    const defaultAddress = await UserAddress.findOne({
+      userId: userId,
+      isDefault: true,
+    })
+
+    if (!defaultAddress) {
+      throw new Error('No default address found for the user.')
+    }
+
+    return defaultAddress
+  } catch (error) {
+    console.error('Error fetching default address:', error.message)
+    throw error
   }
 }
 
