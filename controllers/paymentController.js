@@ -97,7 +97,7 @@ const fetchCartAndCreateOrder = async (userId, paymentIntent) => {
 
     const newOrder = new Order({
       userId: userId,
-      deliveryAddressId: defaultAddress._id,
+      deliveryAddress: defaultAddress._id,
       paymentIntentId: paymentIntent.id,
       amount: paymentIntent.amount / 100,
       currency: paymentIntent.currency,
