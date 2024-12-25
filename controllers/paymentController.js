@@ -2,7 +2,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const Cart = require('../models/Cart')
 const Product = require('../models/Product')
 const Order = require('../models/Order')
-const UserAddress = require('./models/UserAddress')
+const UserAddress = require('../models/UserAddress')
 
 exports.createPaymentIntent = async (req, res) => {
   try {
