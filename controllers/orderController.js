@@ -13,7 +13,11 @@ exports.getUserOrders = async (req, res) => {
       .limit(limit)
       .populate({
         path: 'items.productId',
-        select: 'title price',
+        select: 'title price imageURLs',
+      })
+      .populate({
+        path: 'deliveryAddress',
+        select: '_id city state country address',
       })
 
     const totalOrders = await Order.countDocuments({ userId })

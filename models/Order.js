@@ -6,7 +6,7 @@ const OrderSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
-  deliveryAddressId: {
+  deliveryAddress: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'UserAddress',
     required: true
