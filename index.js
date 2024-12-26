@@ -25,8 +25,6 @@ mongoose
 
 app.use('/api/payments', paymentRoute)
 app.use('/api/subscriptionWebhook', subscriptionWebhookRoute)
-app.use('/api/subscriptions', subscriptionsRoute)
-
 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
@@ -39,6 +37,7 @@ app.use('/api/products', productsRoute)
 app.use('/api/carts', cartRoute)
 app.use('/api/address',addressRoute)
 app.use('/api/orders', ordersRoute)
+app.use('/api/subscriptions', subscriptionsRoute)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
