@@ -13,6 +13,8 @@ const cartRoute = require('./routes/cart')
 const paymentRoute = require('./routes/payments')
 const addressRoute = require('./routes/address')
 const ordersRoute = require('./routes/orders')
+const subscriptionsRoute = require('./routes/subscriptions')
+const subscriptionWebhookRoute = require('./routes/subscriptionWebhook')
 
 mongoose
   .connect(process.env.MONGODB_URI)
@@ -22,6 +24,7 @@ mongoose
   })
 
 app.use('/api/payments', paymentRoute)
+app.use('/api/subscriptionWebhook', subscriptionWebhookRoute)
 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
@@ -34,6 +37,7 @@ app.use('/api/products', productsRoute)
 app.use('/api/carts', cartRoute)
 app.use('/api/address',addressRoute)
 app.use('/api/orders', ordersRoute)
+app.use('/api/subscriptions', subscriptionsRoute)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
