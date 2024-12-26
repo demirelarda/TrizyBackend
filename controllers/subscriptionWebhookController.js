@@ -17,6 +17,12 @@ exports.handleSubscriptionWebhook = async (req, res) => {
 
   try {
     switch (event.type) {
+      case 'payment_intent.created':
+        console.log('PaymentIntent created:', event.data.object.id)
+        break
+      case 'payment_intent.succeeded':
+        console.log('PaymentIntent succeeded:', event.data.object.id)
+        break
       case 'customer.subscription.created':
         await handleSubscriptionCreated(event.data.object)
         break
