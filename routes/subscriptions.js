@@ -5,7 +5,7 @@ const subscriptionController = require('../controllers/subscriptionController')
 
 router.post('/create', verifyToken, subscriptionController.createSubscription)
 
-router.delete('/:subscriptionId', verifyToken, subscriptionController.cancelSubscription)
+router.delete('/cancel/:subscriptionId', verifyToken, subscriptionController.cancelSubscription)
 
 router.get('/status', verifyToken, subscriptionController.getSubscriptionStatus)
 
