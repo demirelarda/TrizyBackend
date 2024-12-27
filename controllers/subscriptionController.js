@@ -40,6 +40,7 @@ exports.createSubscription = async (req, res) => {
       items: [{ price: process.env.STRIPE_MONTHYLY_SUBSCRIPTION_PRICE_ID }],
       payment_behavior: 'default_incomplete',
       expand: ['latest_invoice.payment_intent'],
+      default_payment_method: paymentMethodId,
     })
     const latestInvoice = subscription.latest_invoice
     let clientSecret = null
