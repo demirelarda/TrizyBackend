@@ -84,7 +84,7 @@ exports.cancelSubscription = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Subscription not found.' })
     }
     console.log('Canceling subscription in Stripe:', subscription.stripeSubscriptionId)
-    const canceledSub = await stripe.subscriptions.del(subscription.stripeSubscriptionId)
+    const canceledSub = await stripe.subscriptions.cancel(subscription.stripeSubscriptionId)
     subscription.status = canceledSub.status
     subscription.isActive = false
     subscription.canceledAt = new Date()
