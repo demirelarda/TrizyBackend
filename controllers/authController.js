@@ -1,102 +1,111 @@
 const User = require("../models/User")
 const CryptoJS = require("crypto-js")
 const jwt = require("jsonwebtoken")
+const Subscription = require("../models/Subscription")
 const { createEmptyCartForUser } = require("../controllers/cartController")
 
 exports.createUser = async (req, res) => {
-  const newUser = new User({
-    userFirstName: req.body.userFirstName,
-    userLastName: req.body.userLastName,
-    email: req.body.email,
-    password: CryptoJS.AES.encrypt(req.body.password, process.env.SECRET).toString(),
-  })
-
-  try {
-    const savedUser = await newUser.save()
-
-    // create an empty cart for the user
-    const cartResult = await createEmptyCartForUser(savedUser._id)
-
-    if (!cartResult.success) {
-      // if cart creation fails delete the user and return an error response
-      await User.findByIdAndDelete(savedUser._id)
-      return res.status(500).json({ success: false, message: "Signup failed: Unable to create user cart." })
+    const newUser = new User({
+      userFirstName: req.body.userFirstName,
+      userLastName: req.body.userLastName,
+      email: req.body.email,
+      password: CryptoJS.AES.encrypt(req.body.password, process.env.SECRET).toString(),
+    })
+  
+    try {
+      const savedUser = await newUser.save()
+  
+      // create an empty cart for the user
+      const cartResult = await createEmptyCartForUser(savedUser._id)
+  
+      if (!cartResult.success) {
+        // if cart creation fails delete the user and return an error response
+        await User.findByIdAndDelete(savedUser._id)
+        return res.status(500).json({ success: false, message: "Signup failed: Unable to create user cart." })
+      }
+  
+      const accessToken = jwt.sign(
+        {
+          id: savedUser._id,
+          email: savedUser.email,
+          userFirstName: savedUser.userFirstName,
+          userLastName: savedUser.userLastName,
+          emailVerified: savedUser.emailVerified,
+        },
+        process.env.JWT_SEC //{ expiresIn: '45m' }
+      )
+  
+      const refreshToken = jwt.sign(
+        {
+          id: savedUser._id,
+        },
+        process.env.JWT_REFRESH_SEC //{ expiresIn: '7d' }
+      )
+  
+      savedUser.refreshToken = refreshToken
+      await savedUser.save()
+  
+      const { password, ...others } = savedUser._doc
+  
+      res.status(201).json({ ...others, isSubscriber: false, accessToken, refreshToken })
+    } catch (error) {
+      console.error("Error during user signup:", error)
+      res.status(500).json({ success: false, message: "Signup failed", error: error.message })
     }
-
-    const accessToken = jwt.sign(
-      {
-        id: savedUser._id,
-        email: savedUser.email,
-        userFirstName: savedUser.userFirstName,
-        userLastName: savedUser.userLastName,
-        emailVerified: savedUser.emailVerified,
-      },
-      process.env.JWT_SEC //{ expiresIn: '45m' }
-    )
-
-    const refreshToken = jwt.sign(
-      {
-        id: savedUser._id,
-      },
-      process.env.JWT_REFRESH_SEC //{ expiresIn: '7d' }
-    )
-
-    savedUser.refreshToken = refreshToken
-    await savedUser.save()
-
-    const { password, ...others } = savedUser._doc
-
-    res.status(201).json({ ...others, accessToken, refreshToken })
-  } catch (error) {
-    console.error("Error during user signup:", error)
-    res.status(500).json({ success: false, message: "Signup failed", error: error.message })
-  }
 }
 
 exports.loginUser = async (req, res) => {
     try {
-        const user = await User.findOne({ email: req.body.email })
-        if (!user) return res.status(401).json("Wrong Login Details")
-
-        const decryptedPass = CryptoJS.AES.decrypt(user.password, process.env.SECRET)
-        const decryptedPassword = decryptedPass.toString(CryptoJS.enc.Utf8)
-        if (decryptedPassword !== req.body.password) {
-            return res.status(401).json("Wrong Login Details")
-        }
-
-        // Access Token
-        const accessToken = jwt.sign(
-            {
-                id: user._id,
-                email: user.email,
-                userFirstName: user.userFirstName,
-                userLastName: user.userLastName,
-                emailVerified: user.emailVerified
-            },
-            process.env.JWT_SEC
+      const user = await User.findOne({ email: req.body.email })
+      if (!user) return res.status(401).json("Wrong Login Details")
+  
+      const decryptedPass = CryptoJS.AES.decrypt(user.password, process.env.SECRET)
+      const decryptedPassword = decryptedPass.toString(CryptoJS.enc.Utf8)
+      if (decryptedPassword !== req.body.password) {
+        return res.status(401).json("Wrong Login Details")
+      }
+  
+      // check if user has an active subscription
+      const activeSubscription = await Subscription.findOne({
+        userId: user._id,
+        isActive: true,
+        status: "active",
+      })
+  
+      const isSubscriber = !!activeSubscription
+  
+      // Access Token
+      const accessToken = jwt.sign(
+        {
+          id: user._id,
+          email: user.email,
+          userFirstName: user.userFirstName,
+          userLastName: user.userLastName,
+          emailVerified: user.emailVerified,
+        },
+        process.env.JWT_SEC
+      )
+  
+      let refreshToken
+  
+      try {
+        // verify the existing refresh token
+        jwt.verify(user.refreshToken, process.env.JWT_REFRESH_SEC)
+        refreshToken = user.refreshToken
+      } catch (error) {
+        // If the token has expired, create a new refresh token
+        refreshToken = jwt.sign(
+          { id: user._id },
+          process.env.JWT_REFRESH_SEC
         )
-
-        let refreshToken
-
-        try {
-            // verify the existing refresh token
-            jwt.verify(user.refreshToken, process.env.JWT_REFRESH_SEC)
-            refreshToken = user.refreshToken
-        } catch (error) {
-            // If the token has expired, create a new refresh token
-            refreshToken = jwt.sign(
-                { id: user._id },
-                process.env.JWT_REFRESH_SEC
-            )
-            user.refreshToken = refreshToken
-            await user.save()
-        }
-
-        const { password, ...others } = user._doc
-        res.status(200).json({ ...others, accessToken, refreshToken })
-
+        user.refreshToken = refreshToken
+        await user.save()
+      }
+  
+      const { password, ...others } = user._doc
+      res.status(200).json({ ...others, isSubscriber, accessToken, refreshToken })
     } catch (error) {
-        res.status(500).json(error)
+      res.status(500).json(error)
     }
 }
 
