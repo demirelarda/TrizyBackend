@@ -7,9 +7,9 @@ exports.getProductsByCategoryId = async (req, res) => {
     const { categoryId } = req.params
     const { page = 1, limit = 10 } = req.query
 
-    const subCategories = await Category.find({ parentCategory: categoryId, isActive: true })
+    const subCategories = await Category.find({ parentCategory: categoryId, isActive: true })  // TODO: Use this to get all category ids
 
-    const allCategoryIds = [categoryId, ...(await getAllSubCategoryIds(categoryId))]
+    const allCategoryIds = [categoryId, ...(await getAllSubCategoryIds(categoryId))] // TODO: HERE WE CALL THE getAllSubCateogryIds again, don't do this, instead use the above subCategories it would improve the performance
 
     const products = await Product.find({ category: { $in: allCategoryIds } })
       .skip((page - 1) * limit)

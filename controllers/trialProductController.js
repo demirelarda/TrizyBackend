@@ -7,7 +7,9 @@ exports.getTrialProductsByCategoryId = async (req, res) => {
     const { categoryId } = req.params
     const { page = 1, limit = 10 } = req.query
 
-    const allCategoryIds = [categoryId, ...(await getAllSubCategoryIds(categoryId))]
+    const subCategories = await Category.find({ parentCategory: categoryId, isActive: true }) // TODO: Use this to get all category ids
+
+    const allCategoryIds = [categoryId, ...(await getAllSubCategoryIds(categoryId))] // TODO: HERE WE CALL THE getAllSubCateogryIds again, don't do this, instead use the above subCategories it would improve the performance
 
     const trialProducts = await TrialProduct.find({ category: { $in: allCategoryIds } })
       .skip((page - 1) * limit)
@@ -19,6 +21,7 @@ exports.getTrialProductsByCategoryId = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      subCategories,
       trialProducts,
       pagination: {
         currentPage: parseInt(page),
