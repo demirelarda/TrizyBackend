@@ -1,5 +1,7 @@
 const TrialProduct = require('../models/TrialProduct')
 const Category = require('../models/Category')
+const Trial = require('../models/Trial')
+const mongoose = require('mongoose')
 
 
 exports.getTrialProductsByCategoryId = async (req, res) => {
@@ -137,6 +139,17 @@ exports.getSingleTrialProduct = async (req, res) => {
 exports.getLatestTrialProducts = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query
+    const userId = req.user.id
+
+    if (!mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({ success: false, message: 'Invalid user ID.' })
+    }
+
+    // Check if the user has an active trial, this is for updating the value in the app. TODO: REMOVE THIS AND USE A BETTER LOGIC 
+    const hasActiveTrial = await Trial.exists({
+      userId,
+      status: { $in: ['shipping', 'active'] },
+    })
 
     const trialProducts = await TrialProduct.find({})
       .sort({ createdAt: -1 })
@@ -149,6 +162,7 @@ exports.getLatestTrialProducts = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      hasActiveTrial: !!hasActiveTrial,
       trialProducts,
       pagination: {
         currentPage: parseInt(page),
