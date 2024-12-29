@@ -16,6 +16,7 @@ const ordersRoute = require('./routes/orders')
 const subscriptionsRoute = require('./routes/subscriptions')
 const trialProductsRoute = require('./routes/trialProducts')
 const trialsRoute = require('./routes/trials')
+const reviewsRoute = require('./routes/reviews')
 
 mongoose
   .connect(process.env.MONGODB_URI)
@@ -40,6 +41,7 @@ app.use('/api/orders', ordersRoute)
 app.use('/api/subscriptions', subscriptionsRoute)
 app.use('/api/trialProducts', trialProductsRoute)
 app.use('/api/trials', trialsRoute)
+app.use('/api/reviews', reviewsRoute)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {

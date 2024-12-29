@@ -1,0 +1,12 @@
+const express = require('express')
+const router = express.Router()
+const reviewController = require('../controllers/reviewController')
+const { verifyToken } = require('../middleware/verifyToken')
+
+router.get('/get-product-reviews/:productId', reviewController.getProductComments)
+
+router.post('/create-review', verifyToken, reviewController.createReview)
+
+router.delete('/delete-review/:reviewId', verifyToken, reviewController.deleteComment)
+
+module.exports = router
