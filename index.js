@@ -14,7 +14,8 @@ const paymentRoute = require('./routes/payments')
 const addressRoute = require('./routes/address')
 const ordersRoute = require('./routes/orders')
 const subscriptionsRoute = require('./routes/subscriptions')
-const trialProductRoute = require('./routes/trials')
+const trialProductsRoute = require('./routes/trialProducts')
+const trialsRoute = require('./routes/trials')
 
 mongoose
   .connect(process.env.MONGODB_URI)
@@ -37,7 +38,8 @@ app.use('/api/carts', cartRoute)
 app.use('/api/address',addressRoute)
 app.use('/api/orders', ordersRoute)
 app.use('/api/subscriptions', subscriptionsRoute)
-app.use('/api/trialProducts', trialProductRoute)
+app.use('/api/trialProducts', trialProductsRoute)
+app.use('/api/trials', trialsRoute)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {

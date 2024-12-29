@@ -22,7 +22,7 @@ const TrialSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['active', 'completed', 'cancelled', 'overdue'],
+        enum: ['shipping', 'active', 'completed', 'cancelled', 'overdue'],
         default: 'active'
     },
     feedback: {

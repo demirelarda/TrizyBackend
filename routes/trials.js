@@ -1,10 +1,10 @@
 const express = require('express')
 const router = express.Router()
-const trialProductController = require('../controllers/trialProductController')
+const { verifyToken } = require('../middleware/verifyToken')
+const trialController = require('../controllers/trialController')
 
-router.get('/get-latest', trialProductController.getLatestTrialProducts)
-router.get('/category/:categoryId', trialProductController.getTrialProductsByCategoryId)
-router.get('/search', trialProductController.searchTrialProducts)
-router.get('/:trialProductId', trialProductController.getSingleTrialProduct)
+router.post('/create-trial', verifyToken, trialController.createTrial)
+router.get('/active-trial-details', verifyToken, trialController.getTrialDetails)
+
 
 module.exports = router
