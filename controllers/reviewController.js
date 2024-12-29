@@ -176,3 +176,54 @@ exports.deleteComment = async (req, res) => {
     })
   }
 }
+
+exports.getReviewableProducts = async (req, res) => {
+  try {
+    const { orderId } = req.params
+    const userId = req.user.id
+
+    // Find the order and check if it belongs to the user
+    const order = await Order.findById(orderId)
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found.',
+      })
+    }
+
+    if (order.userId.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to access this order.',
+      })
+    }
+
+    const productIds = order.items.map((item) => item.productId)
+
+    // Find all reviews the user has already made for this order
+    const userReviews = await Review.find({ orderId, userId }).select('productId')
+
+    // Get the productIds that the user has already reviewed
+    const reviewedProductIds = userReviews.map((review) => review.productId.toString())
+
+    // Filter out the reviewed products
+    const reviewableProductIds = productIds.filter(
+      (productId) => !reviewedProductIds.includes(productId.toString())
+    )
+
+    const reviewableProducts = await Product.find({ _id: { $in: reviewableProductIds } })
+      .select('_id imageURLs title')
+
+    res.status(200).json({
+      success: true,
+      reviewableProducts,
+    })
+  } catch (error) {
+    console.error('Error retrieving reviewable products:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve reviewable products.',
+      error: error.message,
+    })
+  }
+}
