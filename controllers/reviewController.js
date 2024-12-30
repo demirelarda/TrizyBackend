@@ -76,9 +76,12 @@ exports.createReview = async (req, res) => {
     const product = await Product.findById(productId)
     if (product) {
       product.reviewCount += 1
-      product.averageRating =
-        (product.averageRating * (product.reviewCount - 1) + rating) /
-        product.reviewCount
+      product.averageRating = parseFloat(
+        (
+          (product.averageRating * (product.reviewCount - 1) + rating) /
+          product.reviewCount
+        ).toFixed(1)
+      )
       await product.save()
     }
   } catch (error) {
@@ -169,11 +172,14 @@ exports.deleteComment = async (req, res) => {
     if (product && product.reviewCount > 0) {
       product.reviewCount -= 1
       if (product.reviewCount === 0) {
-        product.averageRating = 0
+        product.averageRating = 0.0
       } else {
-        product.averageRating =
-          (product.averageRating * (product.reviewCount + 1) - rating) /
-          product.reviewCount
+        product.averageRating = parseFloat(
+          (
+            (product.averageRating * (product.reviewCount + 1) - rating) /
+            product.reviewCount
+          ).toFixed(1)
+        )
       }
       await product.save()
     }
