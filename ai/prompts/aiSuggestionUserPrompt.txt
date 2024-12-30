@@ -1,0 +1,7 @@
+Search Terms (Search History): {search_terms}
+
+Purchase History: {purchase_history}
+
+Viewed Products: {viewed_products}
+
+Reviews: {reviews}
