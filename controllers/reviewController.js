@@ -107,14 +107,16 @@ exports.getProductReviews = async (req, res) => {
 
     const totalReviews = await Review.countDocuments({ productId })
 
-    const ratingAggregation = await Review.aggregate([
-      { $match: { productId: productId } },
-      { $group: { _id: null, averageRating: { $avg: '$rating' } } },
-    ])
+    const product = await Product.findById(productId).select('averageRating')
 
-    const averageRating = ratingAggregation.length > 0 
-      ? parseFloat(ratingAggregation[0].averageRating.toFixed(1)) 
-      : 0.0
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found.',
+      })
+    }
+
+    const averageRating = parseFloat(product.averageRating.toFixed(1))
 
     res.status(200).json({
       success: true,
