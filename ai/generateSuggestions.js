@@ -59,7 +59,6 @@ const getSearchHistory = async (userId) => {
 
     const searchTermsFormatted = searchTerms.map((term) => term.searchTerm).join(', ')
 
-    console.log(`Search history for User ID ${userId}: ${searchTermsFormatted}`)
 
     return searchTermsFormatted
   } catch (error) {
@@ -96,7 +95,6 @@ const getPurchaseHistory = async (userId) => {
 
     const purchaseHistory = products.map((product) => product.title).join(', ')
 
-    console.log(`Purchase history for User ID ${userId}: ${purchaseHistory}`)
 
     return purchaseHistory
   } catch (error) {
@@ -135,7 +133,6 @@ const getViewedProducts = async (userId) => {
 
     const viewedProductTitles = products.map((product) => product.title).join(', ')
 
-    console.log(`Viewed products for User ID ${userId}: ${viewedProductTitles}`)
 
     return viewedProductTitles
   } catch (error) {
@@ -200,7 +197,6 @@ const generateQueries = async (searchTerms, purchaseHistory, viewedProducts, rev
     let text = await response.text()
     text = text.replace(/```json|```/g, '').trim()
     const jsonResponse = JSON.parse(text)
-    console.log(jsonResponse)
     return jsonResponse.queries
   
 }
@@ -239,7 +235,6 @@ const searchForQueries = async (queries) => {
       })
     }
 
-    console.log('Final Suggested Products:', results)
     return results
   } catch (error) {
     console.error('Error in searchForQueries:', error.message)
