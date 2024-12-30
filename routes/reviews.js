@@ -3,7 +3,7 @@ const router = express.Router()
 const reviewController = require('../controllers/reviewController')
 const { verifyToken } = require('../middleware/verifyToken')
 
-router.get('/get-product-reviews/:productId', reviewController.getProductComments)
+router.get('/get-product-reviews/:productId', reviewController.getProductReviews)
 
 router.get('/get-reviewable-products/:orderId', verifyToken, reviewController.getReviewableProducts)
 

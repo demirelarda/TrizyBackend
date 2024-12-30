@@ -91,7 +91,7 @@ exports.createReview = async (req, res) => {
   }
 }
 
-exports.getProductComments = async (req, res) => {
+exports.getProductReviews = async (req, res) => {
   try {
     const { productId } = req.params
     const { page = 1, limit = 10 } = req.query
@@ -104,13 +104,23 @@ exports.getProductComments = async (req, res) => {
 
     const totalReviews = await Review.countDocuments({ productId })
 
+    const ratingAggregation = await Review.aggregate([
+      { $match: { productId: productId } },
+      { $group: { _id: null, averageRating: { $avg: '$rating' } } },
+    ])
+
+    const averageRating = ratingAggregation.length > 0 
+      ? parseFloat(ratingAggregation[0].averageRating.toFixed(1)) 
+      : 0.0
+
     res.status(200).json({
       success: true,
       reviews,
+      averageRating,
+      totalReviews,
       pagination: {
         currentPage: parseInt(page),
         totalPages: Math.ceil(totalReviews / limit),
-        totalReviews,
       },
     })
   } catch (error) {
