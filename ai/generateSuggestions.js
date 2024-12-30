@@ -217,17 +217,16 @@ const searchForQueries = async (queries) => {
 
       const searchFilter = {
         $text: { $search: query },
-        _id: { $nin: Array.from(foundProductIds) },
+        _id: { $nin: Array.from(foundProductIds) }, 
       }
 
       const products = await Product.find(searchFilter)
-        .select('title description price imageURLs category')
+        .select('-__v -createdAt -updatedAt') 
         .lean()
 
-  
       products.forEach((product) => {
         results.push({
-          ...product,
+          ...product, 
           reason,
         })
 
