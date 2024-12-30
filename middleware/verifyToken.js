@@ -11,3 +11,20 @@ exports.verifyToken = (req, res, next) => {
         next()
     })
 }
+
+exports.optionalAuth = (req, res, next) => {
+    const authHeader = req.headers.authorization
+    if (!authHeader) {
+        return next()
+    }
+
+    const token = authHeader.split(" ")[1]
+    jwt.verify(token, process.env.JWT_SEC, (err, user) => {
+        if (err) {
+            return next()
+        }
+
+        req.user = user
+        next()
+    })
+}

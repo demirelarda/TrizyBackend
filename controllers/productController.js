@@ -1,5 +1,7 @@
 const Product = require('../models/Product')
 const Category = require('../models/Category')
+const SearchTerm = require('../models/SearchTerm')
+const ProductView = require('../models/ProductView')
 
 
 exports.getProductsByCategoryId = async (req, res) => {
@@ -40,6 +42,7 @@ exports.getProductsByCategoryId = async (req, res) => {
 }
 
 
+
 exports.searchProducts = async (req, res) => {
   try {
     const { query, categoryId, page = 1, limit = 10 } = req.query
@@ -49,6 +52,19 @@ exports.searchProducts = async (req, res) => {
         success: false,
         message: 'Search query is required.',
       })
+    }
+
+    if (req.user) {
+      (async () => {
+        try {
+          await SearchTerm.create({
+            userId: req.user.id,
+            searchTerm: query,
+          })
+        } catch (err) {
+          console.error('Failed to log search term:', err.message)
+        }
+      })()
     }
 
     const searchFilter = {
@@ -121,6 +137,19 @@ exports.getSingleProduct = async (req, res) => {
         success: false,
         message: 'Product not found.',
       })
+    }
+
+    if (req.user) {
+      (async () => {
+        try {
+          await ProductView.create({
+            userId: req.user.id,
+            productId,
+          })
+        } catch (err) {
+          console.error('Failed to log product view:', err.message)
+        }
+      })()
     }
 
     res.status(200).json({
