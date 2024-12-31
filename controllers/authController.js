@@ -2,6 +2,8 @@ const User = require("../models/User")
 const CryptoJS = require("crypto-js")
 const jwt = require("jsonwebtoken")
 const Subscription = require("../models/Subscription")
+const Like = require('../models/Like')
+const Cart = require('../models/Cart')
 const { createEmptyCartForUser } = require("../controllers/cartController")
 
 exports.createUser = async (req, res) => {
@@ -55,58 +57,72 @@ exports.createUser = async (req, res) => {
 }
 
 exports.loginUser = async (req, res) => {
-    try {
-      const user = await User.findOne({ email: req.body.email })
-      if (!user) return res.status(401).json("Wrong Login Details")
-  
-      const decryptedPass = CryptoJS.AES.decrypt(user.password, process.env.SECRET)
-      const decryptedPassword = decryptedPass.toString(CryptoJS.enc.Utf8)
-      if (decryptedPassword !== req.body.password) {
-        return res.status(401).json("Wrong Login Details")
-      }
-  
-      // check if user has an active subscription
-      const activeSubscription = await Subscription.findOne({
-        userId: user._id,
-        isActive: true,
-        status: "active",
-      })
-  
-      const isSubscriber = !!activeSubscription
-  
-      // Access Token
-      const accessToken = jwt.sign(
-        {
-          id: user._id,
-          email: user.email,
-          userFirstName: user.userFirstName,
-          userLastName: user.userLastName,
-          emailVerified: user.emailVerified,
-        },
-        process.env.JWT_SEC
-      )
-  
-      let refreshToken
-  
-      try {
-        // verify the existing refresh token
-        jwt.verify(user.refreshToken, process.env.JWT_REFRESH_SEC)
-        refreshToken = user.refreshToken
-      } catch (error) {
-        // If the token has expired, create a new refresh token
-        refreshToken = jwt.sign(
-          { id: user._id },
-          process.env.JWT_REFRESH_SEC
-        )
-        user.refreshToken = refreshToken
-        await user.save()
-      }
-  
-      const { password, ...others } = user._doc
-      res.status(200).json({ ...others, isSubscriber, accessToken, refreshToken })
-    } catch (error) {
-      res.status(500).json(error)
+  try {
+    const user = await User.findOne({ email: req.body.email })
+    if (!user) return res.status(401).json("Wrong Login Details")
+
+    const decryptedPass = CryptoJS.AES.decrypt(user.password, process.env.SECRET)
+    const decryptedPassword = decryptedPass.toString(CryptoJS.enc.Utf8)
+    if (decryptedPassword !== req.body.password) {
+      return res.status(401).json("Wrong Login Details")
     }
+
+    // Check if user has an active subscription
+    const activeSubscription = await Subscription.findOne({
+      userId: user._id,
+      isActive: true,
+      status: "active",
+    })
+
+    const isSubscriber = !!activeSubscription
+
+    // Generate Access Token
+    const accessToken = jwt.sign(
+      {
+        id: user._id,
+        email: user.email,
+        userFirstName: user.userFirstName,
+        userLastName: user.userLastName,
+        emailVerified: user.emailVerified,
+      },
+      process.env.JWT_SEC
+    )
+
+    let refreshToken
+
+    try {
+      // Verify the existing refresh token
+      jwt.verify(user.refreshToken, process.env.JWT_REFRESH_SEC)
+      refreshToken = user.refreshToken
+    } catch (error) {
+      // If the token has expired, create a new refresh token
+      refreshToken = jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SEC)
+      user.refreshToken = refreshToken
+      await user.save()
+    }
+
+    // Fetch liked product IDs
+    const likedProducts = await Like.find({ userId: user._id }).select("productId")
+    const likedProductIds = likedProducts.map((like) => like.productId.toString())
+
+    // Fetch cart item IDs
+    const cart = await Cart.findOne({ ownerId: user._id }).select("items")
+    const cartItemIds = cart ? cart.items.map((item) => item.productId.toString()) : []
+
+    const { password, stripeCustomerId, ...others } = user._doc
+
+    res.status(200).json({
+      ...others,
+      isSubscriber,
+      accessToken,
+      refreshToken,
+      likedProductIds,
+      cartItemIds,
+    })
+  } catch (error) {
+    console.error("Error logging in user:", error.message)
+    res.status(500).json(error)
+  }
 }
 
 exports.refreshToken = async (req, res) => {
