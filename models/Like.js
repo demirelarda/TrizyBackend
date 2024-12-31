@@ -13,4 +13,11 @@ const LikeSchema = new mongoose.Schema({
     }
 }, { timestamps: true })
 
+// prevent duplicate likes
+LikeSchema.index({ userId: 1, productId: 1 }, { unique: true })
+
+// for faster querying
+LikeSchema.index({ userId: 1 })
+LikeSchema.index({ productId: 1 })
+
 module.exports = mongoose.model('Like', LikeSchema)
