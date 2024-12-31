@@ -15,6 +15,11 @@ const generateSystemPrompt = () => {
   return fs.readFileSync(filePath, 'utf8')
 }
 
+const finalizerSystemPrompt = () => {
+  const filePath = path.join(__dirname, 'prompts/finalizerAiSystemPrompt.txt')
+  return fs.readFileSync(filePath, 'utf8')
+}
+
 const generateUserPrompt = (placeholders) => {
   const { searchTerms, purchaseHistory, viewedProducts, reviews} = placeholders
   const filePath = path.join(__dirname, 'prompts/aiSuggestionUserPrompt.txt')
@@ -202,10 +207,33 @@ const generateQueries = async (searchTerms, purchaseHistory, viewedProducts, rev
 }
 
 
+const generateFinalProductSuggestions = async (finalPrompt) => {
+  try {
+    const systemPrompt = finalizerSystemPrompt()
+
+    const model = genAI.getGenerativeModel({
+      model: aiModel,
+      systemInstruction: systemPrompt,
+    })
+  
+    const result = await model.generateContent(finalPrompt)
+    const response = await result.response
+    let text = await response.text()
+    text = text.replace(/```json|```/g, '').trim()
+    const jsonResponse = JSON.parse(text)
+    console.log("json response of final product suggestions = \n", jsonResponse)
+    return jsonResponse
+  } catch (error) {
+    console.error(error)
+  }
+
+}
+
+
 const searchForQueries = async (queries) => {
   try {
-    const results = []
-    const foundProductIds = new Set()
+    const suggestedQueryResults = []
+    const foundProductIds = new Set() 
 
     for (const queryObj of queries) {
       const { query, reason } = queryObj
@@ -217,29 +245,59 @@ const searchForQueries = async (queries) => {
 
       const searchFilter = {
         $text: { $search: query },
-        _id: { $nin: Array.from(foundProductIds) }, 
+        _id: { $nin: Array.from(foundProductIds) },
       }
 
       const products = await Product.find(searchFilter)
-        .select('-__v -createdAt -updatedAt') 
+        .select('_id title')
         .lean()
 
       products.forEach((product) => {
-        results.push({
-          ...product, 
-          reason,
+        suggestedQueryResults.push({
+          _id: product._id.toString(),
+          productName: product.title, 
         })
 
         foundProductIds.add(product._id.toString())
       })
     }
 
-    return results
+    const finalResult = { suggestedQueryResults }
+
+    return finalResult
   } catch (error) {
     console.error('Error in searchForQueries:', error.message)
+    return { suggestedQueryResults: [] }
+  }
+}
+
+
+const getFinalSuggestedProducts = async (finalSuggestions) => {
+  try {
+    const productIds = finalSuggestions.suggestedProducts.map((product) => product._id)
+
+    const products = await Product.find({ _id: { $in: productIds } })
+      .select('-__v -createdAt -updatedAt')
+      .lean()
+
+    const enrichedSuggestions = finalSuggestions.suggestedProducts.map((suggestion) => {
+      const product = products.find((p) => p._id.toString() === suggestion._id)
+      if (product) {
+        return {
+          ...product,
+          reason: suggestion.reason,
+        }
+      }
+      return null
+    }).filter(Boolean)
+
+    return enrichedSuggestions
+  } catch (error) {
+    console.error('Error in getFinalSuggestedProducts:', error.message)
     return []
   }
 }
+
 
 
 
@@ -248,8 +306,35 @@ const getSuggestedProducts = async (userId) => {
   const purchaseHistory = await getPurchaseHistory(userId)
   const viewedProducts = await getViewedProducts(userId)
   const reviews = await getReviews(userId)
+
   const queries = await generateQueries(searchTerms, purchaseHistory, viewedProducts, reviews)
-  return searchForQueries(queries)
+  const searchResults = await searchForQueries(queries)
+
+  const userActivity = {
+    searchTerms: searchTerms.split(', ').filter(Boolean),
+    purchaseHistory: purchaseHistory.split(', ').filter(Boolean),
+    viewedProducts: viewedProducts.split(', ').filter(Boolean),
+    reviews: reviews.split('\n\n').filter(Boolean),
+  }
+
+  const finalPrompt = {
+    suggestedQueryResults: searchResults.suggestedQueryResults,
+    userActivity,
+  }
+
+  console.log("final prompt = ", finalPrompt)
+
+  // Convert the JSON object to a JSON string
+  const finalPromptText = JSON.stringify(finalPrompt, null, 2)
+
+  console.log("Final Prompt as Text (JSON String):", finalPromptText)
+
+  // Pass the JSON string to generateFinalProductSuggestions
+  const finalSuggestions = await generateFinalProductSuggestions(finalPromptText)
+
+  const returnedProducts = await getFinalSuggestedProducts(finalSuggestions)
+
+  return returnedProducts
 }
 
 
