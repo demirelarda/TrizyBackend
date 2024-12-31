@@ -221,7 +221,6 @@ const generateFinalProductSuggestions = async (finalPrompt) => {
     let text = await response.text()
     text = text.replace(/```json|```/g, '').trim()
     const jsonResponse = JSON.parse(text)
-    console.log("json response of final product suggestions = \n", jsonResponse)
     return jsonResponse
   } catch (error) {
     console.error(error)
@@ -322,14 +321,8 @@ const getSuggestedProducts = async (userId) => {
     userActivity,
   }
 
-  console.log("final prompt = ", finalPrompt)
-
-  // Convert the JSON object to a JSON string
   const finalPromptText = JSON.stringify(finalPrompt, null, 2)
 
-  console.log("Final Prompt as Text (JSON String):", finalPromptText)
-
-  // Pass the JSON string to generateFinalProductSuggestions
   const finalSuggestions = await generateFinalProductSuggestions(finalPromptText)
 
   const returnedProducts = await getFinalSuggestedProducts(finalSuggestions)
