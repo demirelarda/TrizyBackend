@@ -5,6 +5,8 @@ const { verifyToken } = require('../middleware/verifyToken')
 
 router.get('/get-cart', verifyToken, cartController.getCart)
 
+router.get('/get-cart-items', verifyToken, cartController.getCartProductIds)
+
 router.post('/add-item', verifyToken, cartController.addItemToCart)
 
 router.post('/add-item-on-feed', verifyToken, cartController.addItemToCartOnFeed)

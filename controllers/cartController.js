@@ -333,3 +333,39 @@ exports.addItemToCartOnFeed = async (req, res) => {
     })
   }
 }
+
+exports.getCartProductIds = async (req, res) => {
+  try {
+    const userId = req.user.id
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required',
+      })
+    }
+
+    const cart = await Cart.findOne({ ownerId: userId }).select('items.productId')
+
+    if (!cart) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cart not found',
+      })
+    }
+
+    const productIds = cart.items.map(item => item.productId.toString())
+
+    res.status(200).json({
+      success: true,
+      productIds,
+    })
+  } catch (error) {
+    console.error('Error fetching cart product IDs:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch cart product IDs',
+      error: error.message,
+    })
+  }
+}

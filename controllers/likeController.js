@@ -60,3 +60,27 @@ exports.removeLike = async (req, res) => {
         res.status(500).json({ success: false, message: 'An error occurred while unliking the product.' })
     }
 }
+
+exports.getLikedProductIds = async (req, res) => {
+    try {
+        const userId = req.user.id
+
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'User ID is required.' })
+        }
+
+        const likedProducts = await Like.find({ userId }).select('productId')
+        const likedProductIds = likedProducts.map((like) => like.productId.toString())
+
+        return res.status(200).json({
+            success: true,
+            likedProductIds,
+        })
+    } catch (error) {
+        console.error('Error fetching liked product IDs:', error.message)
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while fetching liked product IDs.',
+        })
+    }
+}
