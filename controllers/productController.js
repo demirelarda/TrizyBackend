@@ -2,6 +2,7 @@ const Product = require('../models/Product')
 const Category = require('../models/Category')
 const SearchTerm = require('../models/SearchTerm')
 const ProductView = require('../models/ProductView')
+const Like = require('../models/Like')
 
 
 exports.getProductsByCategoryId = async (req, res) => {
@@ -161,6 +162,65 @@ exports.getSingleProduct = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch product.',
+      error: error.message,
+    })
+  }
+}
+
+
+exports.getLikedProducts = async (req, res) => {
+  try {
+    const userId = req.user.id
+    const { page = 1, limit = 10 } = req.query
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required.',
+      })
+    }
+
+    const likedProducts = await Like.find({ userId })
+      .select('productId')
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+
+    if (likedProducts.length === 0) {
+      return res.status(200).json({
+        success: true,
+        products: [],
+        message: 'No liked products found.',
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: 0,
+          totalProducts: 0,
+        },
+      })
+    }
+
+    const totalLikedProducts = await Like.countDocuments({ userId })
+
+    const productIds = likedProducts.map((like) => like.productId)
+
+    const products = await Product.find({ _id: { $in: productIds } })
+      .populate('category', 'name description')
+      .exec()
+
+    return res.status(200).json({
+      success: true,
+      products,
+      message: 'Liked products fetched successfully.',
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalLikedProducts / limit),
+        totalProducts: totalLikedProducts,
+      },
+    })
+  } catch (error) {
+    console.error('Error fetching liked products:', error.message)
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while fetching liked products.',
       error: error.message,
     })
   }
