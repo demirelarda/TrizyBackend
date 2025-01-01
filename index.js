@@ -3,6 +3,8 @@ const app = express()
 const bodyParser = require('body-parser')
 const mongoose = require('mongoose')
 const dotenv = require('dotenv')
+const { USE_REDIS } = require('./config/env')
+const createRedisClient = require('./services/redisClient')
 dotenv.config()
 
 const authRoute = require('./routes/auth')
@@ -26,6 +28,10 @@ mongoose
   .catch((err) => {
     console.log(err)
   })
+
+if (USE_REDIS) {
+  createRedisClient()
+}
 
 app.use('/api/payments', paymentRoute)
 

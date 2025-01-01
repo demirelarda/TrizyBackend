@@ -1,18 +1,74 @@
+const mongoose = require('mongoose')
 const Product = require('../models/Product')
 const Category = require('../models/Category')
 const SearchTerm = require('../models/SearchTerm')
 const ProductView = require('../models/ProductView')
 const Like = require('../models/Like')
+const { USE_REDIS } = require('../config/env')
+const createRedisClient = require('../services/redisClient')
 
+const ObjectId = mongoose.Types.ObjectId
+
+const CACHE_TTL = 3600
 
 exports.getProductsByCategoryId = async (req, res) => {
   try {
     const { categoryId } = req.params
     const { page = 1, limit = 10 } = req.query
 
-    const subCategories = await Category.find({ parentCategory: categoryId, isActive: true })  // TODO: Use this to get all category ids
+    let redisClient = null
+    if (USE_REDIS) {
+      redisClient = createRedisClient()
+    }
 
-    const allCategoryIds = [categoryId, ...(await getAllSubCategoryIds(categoryId))] // TODO: HERE WE CALL THE getAllSubCateogryIds again, don't do this, instead use the above subCategories it would improve the performance
+    let categoriesTree = null
+    const cacheKey = `descendants:${categoryId}`
+
+    if (USE_REDIS && redisClient) {
+      const cachedValue = await redisClient.get(cacheKey)
+      if (cachedValue) {
+        categoriesTree = JSON.parse(cachedValue)
+      }
+    }
+
+    if (!categoriesTree) {
+      categoriesTree = await Category.aggregate([
+        {
+          $match: { _id: new ObjectId(categoryId), isActive: true },
+        },
+        {
+          $graphLookup: {
+            from: 'categories',
+            startWith: '$_id',
+            connectFromField: '_id',
+            connectToField: 'parentCategory',
+            as: 'descendants',
+            restrictSearchWithMatch: { isActive: true },
+          },
+        },
+      ])
+
+      if (categoriesTree.length && USE_REDIS && redisClient) {
+        await redisClient.set(cacheKey, JSON.stringify(categoriesTree), 'EX', CACHE_TTL)
+      }
+    }
+
+    if (!categoriesTree || !categoriesTree.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found or inactive',
+      })
+    }
+
+    const allCategoryIds = [
+      categoriesTree[0]._id,
+      ...categoriesTree[0].descendants.map((cat) => cat._id),
+    ]
+
+    const subCategories = await Category.find({
+      parentCategory: categoryId,
+      isActive: true,
+    })
 
     const products = await Product.find({ category: { $in: allCategoryIds } })
       .skip((page - 1) * limit)
@@ -20,12 +76,20 @@ exports.getProductsByCategoryId = async (req, res) => {
       .populate('category', 'name description')
       .exec()
 
-    const totalProducts = await Product.countDocuments({ category: { $in: allCategoryIds } })
+    const totalProducts = await Product.countDocuments({
+      category: { $in: allCategoryIds },
+    })
+
+    const transformedProducts = products.map((product) => ({
+      ...product.toObject(),
+      tags: [], 
+      description: "",
+    }))
 
     res.status(200).json({
       success: true,
-      subCategories, // include subcategories (first level only)
-      products,
+      subCategories,
+      products: transformedProducts,
       pagination: {
         currentPage: parseInt(page),
         totalPages: Math.ceil(totalProducts / limit),
@@ -41,6 +105,24 @@ exports.getProductsByCategoryId = async (req, res) => {
     })
   }
 }
+
+/*
+const getAllSubCategoryIds = async (parentCategoryId) => {
+  const subCategories = await Category.find({ parentCategory: parentCategoryId, isActive: true })
+  const subCategoryIds = subCategories.map((sub) => sub._id)
+
+  if (subCategoryIds.length > 0) {
+    for (const subCategoryId of subCategoryIds) {
+      const deeperSubCategoryIds = await getAllSubCategoryIds(subCategoryId)
+      subCategoryIds.push(...deeperSubCategoryIds)
+    }
+  }
+
+  return subCategoryIds
+}
+*/
+
+
 
 
 
@@ -110,21 +192,7 @@ exports.searchProducts = async (req, res) => {
 }
 
 
-const getAllSubCategoryIds = async (parentCategoryId) => {
-    const subCategories = await Category.find({ parentCategory: parentCategoryId, isActive: true })
-    const subCategoryIds = subCategories.map((sub) => sub._id)
-  
-    if (subCategoryIds.length > 0) {
-      for (const subCategoryId of subCategoryIds) {
-        const deeperSubCategoryIds = await getAllSubCategoryIds(subCategoryId)
-        subCategoryIds.push(...deeperSubCategoryIds)
-      }
-    }
-  
-    return subCategoryIds
-}
 
-  
 exports.getSingleProduct = async (req, res) => {
   try {
     const { productId } = req.params
