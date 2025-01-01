@@ -21,6 +21,11 @@ const CartSchema = new mongoose.Schema({
     unique: true,
   },
   items: [CartItemSchema],
+  cargoFee: {
+    type: Number,
+    required: true,
+    default: 0.0,
+  },
 }, { timestamps: true })
 
 module.exports = mongoose.model('Cart', CartSchema)

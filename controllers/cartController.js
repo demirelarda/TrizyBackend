@@ -1,5 +1,7 @@
 const Cart = require("../models/Cart")
 const Product = require("../models/Product")
+const CARGO_FEE_THRESHOLD = 200
+const CARGO_FEE = 35
 
 exports.createEmptyCartForUser = async (userId) => {
   try {
@@ -44,13 +46,17 @@ exports.getCart = async (req, res) => {
       quantity: item.quantity,
     }))
 
+    const cargoFee = calculateCargoFee(cart)
+
     res.status(200).json({
       success: true,
       cart: {
         ownerId: cart.ownerId,
         items: transformedItems,
         updatedAt: cart.updatedAt,
+        cargoFee: cargoFee
       },
+      cargoFeeThreshold: CARGO_FEE_THRESHOLD
     })
   } catch (error) {
     console.error('Error fetching cart:', error)
@@ -90,6 +96,7 @@ const getTransformedCart = async (userId) => {
         ownerId: cart.ownerId,
         items: transformedItems,
         updatedAt: cart.updatedAt,
+        cargoFee: calculateCargoFee(cart)
       },
     }
   } catch (error) {
@@ -161,6 +168,7 @@ exports.addItemToCart = async (req, res) => {
       success: true,
       message: "Item added to cart successfully",
       cart: updatedCart.cart,
+      cargoFeeThreshold: CARGO_FEE_THRESHOLD
     })
   } catch (error) {
     console.error("Error adding item to cart:", error)
@@ -210,6 +218,7 @@ exports.deleteItemFromCart = async (req, res) => {
       success: true,
       message: "Item removed from cart successfully",
       cart: updatedCart.cart,
+      cargoFeeThreshold: CARGO_FEE_THRESHOLD
     })
   } catch (error) {
     console.error("Error removing item from cart:", error)
@@ -264,6 +273,7 @@ exports.decrementQuantity = async (req, res) => {
       success: true,
       message: "Quantity decremented successfully",
       cart: updatedCart.cart,
+      cargoFeeThreshold: CARGO_FEE_THRESHOLD
     })
   } catch (error) {
     console.error("Error decrementing item quantity in cart:", error)
@@ -317,7 +327,7 @@ exports.addItemToCartOnFeed = async (req, res) => {
     } else {
       cart.items.push({ productId, quantity })
     }
-
+    cart.cargoFee = calculateCargoFee(cart)
     await cart.save()
 
     res.status(200).json({
@@ -368,4 +378,20 @@ exports.getCartProductIds = async (req, res) => {
       error: error.message,
     })
   }
+}
+
+
+const calculateCargoFee = (cart) => {
+  if (!cart) {
+    throw new Error("Cart is required")
+  }
+
+  const totalAmount = cart.items.reduce((sum, item) => {
+    if (!item.productId || typeof item.productId.price !== "number") {
+      throw new Error("Item price is missing or invalid")
+    }
+    return sum + item.quantity * item.productId.price
+  }, 0)
+
+  return totalAmount > CARGO_FEE_THRESHOLD ? 0 : CARGO_FEE
 }
