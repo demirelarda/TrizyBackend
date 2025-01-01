@@ -1,7 +1,7 @@
 const Cart = require("../models/Cart")
 const Product = require("../models/Product")
-const CARGO_FEE_THRESHOLD = 200
-const CARGO_FEE = 35
+const CARGO_FEE_THRESHOLD = 200 // TODO: store in db
+const CARGO_FEE = 35 // TODO. TODO: store in db
 
 exports.createEmptyCartForUser = async (userId) => {
   try {
@@ -327,6 +327,13 @@ exports.addItemToCartOnFeed = async (req, res) => {
     } else {
       cart.items.push({ productId, quantity })
     }
+
+    await cart.save()
+    await cart.populate({
+      path: 'items.productId',
+      select: 'price',
+    })
+
     cart.cargoFee = calculateCargoFee(cart)
     await cart.save()
 
