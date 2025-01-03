@@ -6,6 +6,7 @@ const dotenv = require('dotenv')
 const { USE_REDIS } = require('./config/env')
 const createRedisClient = require('./services/redisClient')
 dotenv.config()
+const cronJobs = require('./cronJobs')
 
 const authRoute = require('./routes/auth')
 const dealsRoute = require('./routes/deals')
