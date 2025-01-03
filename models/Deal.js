@@ -25,7 +25,7 @@ const DealSchema = new mongoose.Schema(
     aspectRatio: {
       type: String,
       required: true,
-      enum: ['16:9', '4:3'],
+      enum: ['16:9', '4:3', '3:2'],
       default: '16:9',
     },
   },
