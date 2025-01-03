@@ -22,6 +22,7 @@ const trialsRoute = require('./routes/trials')
 const reviewsRoute = require('./routes/reviews')
 const aiSuggestionsRoute = require('./routes/aiSuggestions')
 const likesRoute = require('./routes/likes')
+const trendingSearchesRoute = require('./routes/searchTrends')
 
 mongoose
   .connect(process.env.MONGODB_URI)
@@ -53,6 +54,7 @@ app.use('/api/trials', trialsRoute)
 app.use('/api/reviews', reviewsRoute)
 app.use('/api/aiSuggestions', aiSuggestionsRoute)
 app.use('/api/likes', likesRoute)
+app.use('/api/trendingSearches', trendingSearchesRoute)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {

@@ -39,15 +39,13 @@ const setSearchTrends = async () => {
         occurrenceCount: term.count,
       }))
 
+      console.log('Clearing previous trending search terms...')
+      await TrendingSearch.deleteMany({})
+      console.log('Cleared previous trending search terms.')
+
       console.log('Inserting new trending search terms...')
       await TrendingSearch.insertMany(trendingSearches)
       console.log('New trending search terms inserted:', trendingSearches)
-
-      console.log('Clearing previous trending search terms...')
-      await TrendingSearch.deleteMany({
-        _id: { $nin: trendingSearches.map((t) => t._id) },
-      })
-      console.log('Cleared previous trending search terms.')
 
       console.log('Trending search terms cron job completed successfully.')
     } catch (error) {
