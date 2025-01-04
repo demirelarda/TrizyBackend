@@ -328,7 +328,18 @@ exports.getSingleProduct = async (req, res) => {
 exports.getLikedProducts = async (req, res) => {
   try {
     const userId = req.user.id
-    const { page = 1, limit = 10 } = req.query
+    const {
+      page = 1,
+      limit = 10,
+      minPrice,
+      maxPrice,
+      exactRatings,
+      minRatingCount,
+      maxRatingCount,
+      minLikeCount,
+      maxLikeCount,
+      sortBy, 
+    } = req.query
 
     if (!userId) {
       return res.status(400).json({
@@ -359,7 +370,45 @@ exports.getLikedProducts = async (req, res) => {
 
     const productIds = likedProducts.map((like) => like.productId)
 
-    const products = await Product.find({ _id: { $in: productIds } })
+    const filters = { _id: { $in: productIds } }
+
+    if (minPrice || maxPrice) {
+      filters.price = {}
+      if (minPrice) filters.price.$gte = parseFloat(minPrice)
+      if (maxPrice) filters.price.$lte = parseFloat(maxPrice)
+    }
+
+    if (exactRatings) {
+      const ratingsArray = exactRatings.split(',').map(Number)
+      filters.averageRating = { 
+        $in: ratingsArray.flatMap(rating => 
+          Array.from({ length: 10 }, (_, i) => rating + i * 0.1)
+        ) 
+      }
+    }
+
+    if (minRatingCount || maxRatingCount) {
+      filters.reviewCount = {}
+      if (minRatingCount) filters.reviewCount.$gte = parseInt(minRatingCount)
+      if (maxRatingCount) filters.reviewCount.$lte = parseInt(maxRatingCount)
+    }
+
+    if (minLikeCount || maxLikeCount) {
+      filters.likeCount = {}
+      if (minLikeCount) filters.likeCount.$gte = parseInt(minLikeCount)
+      if (maxLikeCount) filters.likeCount.$lte = parseInt(maxLikeCount)
+    }
+
+    const sortOptions = {}
+    if (sortBy === 'priceAsc') sortOptions.price = 1
+    if (sortBy === 'priceDesc') sortOptions.price = -1
+    if (sortBy === 'ratingCountDesc') sortOptions.reviewCount = -1
+    if (sortBy === 'likeCountDesc') sortOptions.likeCount = -1
+
+    const products = await Product.find(filters)
+      .sort(sortOptions)
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
       .populate('category', 'name description')
       .exec()
 
