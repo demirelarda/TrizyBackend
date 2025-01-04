@@ -14,7 +14,18 @@ const CACHE_TTL = 3600
 exports.getProductsByCategoryId = async (req, res) => {
   try {
     const { categoryId } = req.params
-    const { page = 1, limit = 10 } = req.query
+    const {
+      page = 1,
+      limit = 10,
+      minPrice,
+      maxPrice,
+      exactRatings, // should look like: "1,2,3"
+      minRatingCount,
+      maxRatingCount,
+      minLikeCount,
+      maxLikeCount,
+      sortBy, // options: "priceAsc", "priceDesc", "ratingCountDesc", "likeCountDesc"
+    } = req.query
 
     let redisClient = null
     if (USE_REDIS) {
@@ -38,25 +49,25 @@ exports.getProductsByCategoryId = async (req, res) => {
         },
         {
           $graphLookup: {
-            from: 'categories',
-            startWith: '$_id',
-            connectFromField: '_id',
-            connectToField: 'parentCategory',
-            as: 'descendants',
+            from: "categories",
+            startWith: "$_id",
+            connectFromField: "_id",
+            connectToField: "parentCategory",
+            as: "descendants",
             restrictSearchWithMatch: { isActive: true },
           },
         },
       ])
 
       if (categoriesTree.length && USE_REDIS && redisClient) {
-        await redisClient.set(cacheKey, JSON.stringify(categoriesTree), 'EX', CACHE_TTL)
+        await redisClient.set(cacheKey, JSON.stringify(categoriesTree), "EX", CACHE_TTL)
       }
     }
 
     if (!categoriesTree || !categoriesTree.length) {
       return res.status(404).json({
         success: false,
-        message: 'Category not found or inactive',
+        message: "Category not found or inactive",
       })
     }
 
@@ -70,19 +81,51 @@ exports.getProductsByCategoryId = async (req, res) => {
       isActive: true,
     })
 
-    const products = await Product.find({ category: { $in: allCategoryIds } })
+    const filters = { category: { $in: allCategoryIds } }
+
+    if (minPrice || maxPrice) {
+      filters.price = {}
+      if (minPrice) filters.price.$gte = parseFloat(minPrice)
+      if (maxPrice) filters.price.$lte = parseFloat(maxPrice)
+    }
+
+    if (exactRatings) {
+      const ratingsArray = exactRatings.split(",").map(Number)
+      filters.averageRating = { $in: ratingsArray.flatMap(rating => {
+        return Array.from({ length: 10 }, (_, i) => rating + i * 0.1)
+      }) }
+    }
+
+    if (minRatingCount || maxRatingCount) {
+      filters.reviewCount = {}
+      if (minRatingCount) filters.reviewCount.$gte = parseInt(minRatingCount)
+      if (maxRatingCount) filters.reviewCount.$lte = parseInt(maxRatingCount)
+    }
+
+    if (minLikeCount || maxLikeCount) {
+      filters.likeCount = {}
+      if (minLikeCount) filters.likeCount.$gte = parseInt(minLikeCount)
+      if (maxLikeCount) filters.likeCount.$lte = parseInt(maxLikeCount)
+    }
+
+    const sortOptions = {}
+    if (sortBy === "priceAsc") sortOptions.price = 1
+    if (sortBy === "priceDesc") sortOptions.price = -1
+    if (sortBy === "ratingCountDesc") sortOptions.reviewCount = -1
+    if (sortBy === "likeCountDesc") sortOptions.likeCount = -1
+
+    const products = await Product.find(filters)
+      .sort(sortOptions)
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
-      .populate('category', 'name description')
+      .populate("category", "name description")
       .exec()
 
-    const totalProducts = await Product.countDocuments({
-      category: { $in: allCategoryIds },
-    })
+    const totalProducts = await Product.countDocuments(filters)
 
     const transformedProducts = products.map((product) => ({
       ...product.toObject(),
-      tags: [], 
+      tags: [],
       description: "",
     }))
 
@@ -97,10 +140,10 @@ exports.getProductsByCategoryId = async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('Error fetching products by category:', error)
+    console.error("Error fetching products by category:", error)
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch products by category',
+      message: "Failed to fetch products by category",
       error: error.message,
     })
   }
@@ -128,12 +171,25 @@ const getAllSubCategoryIds = async (parentCategoryId) => {
 
 exports.searchProducts = async (req, res) => {
   try {
-    const { query, categoryId, page = 1, limit = 10 } = req.query
+    const {
+      query,
+      categoryId,
+      page = 1,
+      limit = 10,
+      minPrice,
+      maxPrice,
+      exactRatings,
+      minRatingCount,
+      maxRatingCount,
+      minLikeCount,
+      maxLikeCount,
+      sortBy,
+    } = req.query
 
-    if (!query || query.trim() === '') {
+    if (!query || query.trim() === "") {
       return res.status(400).json({
         success: false,
-        message: 'Search query is required.',
+        message: "Search query is required.",
       })
     }
 
@@ -145,7 +201,7 @@ exports.searchProducts = async (req, res) => {
             searchTerm: query,
           })
         } catch (err) {
-          console.error('Failed to log search term:', err.message)
+          console.error("Failed to log search term:", err.message)
         }
       })()
     }
@@ -158,14 +214,47 @@ exports.searchProducts = async (req, res) => {
       searchFilter.category = categoryId
     }
 
+    if (minPrice || maxPrice) {
+      searchFilter.price = {}
+      if (minPrice) searchFilter.price.$gte = parseFloat(minPrice)
+      if (maxPrice) searchFilter.price.$lte = parseFloat(maxPrice)
+    }
+
+    if (exactRatings) {
+      const ratingsArray = exactRatings.split(",").map(Number)
+      searchFilter.averageRating = {
+        $in: ratingsArray.flatMap((rating) =>
+          Array.from({ length: 10 }, (_, i) => rating + i * 0.1)
+        ),
+      }
+    }
+
+    if (minRatingCount || maxRatingCount) {
+      searchFilter.reviewCount = {}
+      if (minRatingCount) searchFilter.reviewCount.$gte = parseInt(minRatingCount)
+      if (maxRatingCount) searchFilter.reviewCount.$lte = parseInt(maxRatingCount)
+    }
+
+    if (minLikeCount || maxLikeCount) {
+      searchFilter.likeCount = {}
+      if (minLikeCount) searchFilter.likeCount.$gte = parseInt(minLikeCount)
+      if (maxLikeCount) searchFilter.likeCount.$lte = parseInt(maxLikeCount)
+    }
+
+    const sortOptions = {}
+    if (sortBy === "priceAsc") sortOptions.price = 1
+    if (sortBy === "priceDesc") sortOptions.price = -1
+    if (sortBy === "ratingCountDesc") sortOptions.reviewCount = -1
+    if (sortBy === "likeCountDesc") sortOptions.likeCount = -1
+
     const skip = (page - 1) * limit
 
     const [products, totalProducts] = await Promise.all([
       Product.find(searchFilter)
-        .sort({ score: { $meta: 'textScore' } })
+        .sort({ ...sortOptions, score: { $meta: "textScore" } })
         .skip(skip)
         .limit(Number(limit))
-        .populate('category', 'name description'),
+        .populate("category", "name description"),
       Product.countDocuments(searchFilter),
     ])
 
@@ -182,10 +271,10 @@ exports.searchProducts = async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('Error searching products:', error)
+    console.error("Error searching products:", error)
     res.status(500).json({
       success: false,
-      message: 'An error occurred while searching for products.',
+      message: "An error occurred while searching for products.",
       error: error.message,
     })
   }
