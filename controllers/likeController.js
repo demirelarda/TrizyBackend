@@ -25,6 +25,9 @@ exports.likeProduct = async (req, res) => {
         })
         await like.save()
 
+        productExists.likeCount += 1
+        await productExists.save()
+
         return res.status(201).json({ success: true, message: 'Product liked successfully.' })
     } catch (error) {
         console.error('Error liking product:', error.message)
@@ -53,6 +56,10 @@ exports.removeLike = async (req, res) => {
         if (!deletedLike) {
             return res.status(404).json({ success: false, message: 'Like not found.' })
         }
+
+        
+        productExists.likeCount = Math.max(0, productExists.likeCount - 1)
+        await productExists.save()
 
         return res.status(200).json({ success: true, message: 'Product unliked successfully.' })
     } catch (error) {
