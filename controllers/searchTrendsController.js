@@ -1,11 +1,11 @@
 const TrendingSearch = require('../models/TrendingSearch')
 
 exports.getTrendingSearches = async (req, res) => {
-  try {    
+  try {
     const trendingSearches = await TrendingSearch.find()
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .select('trendingSearchTerm occurrenceCount')
+      .sort({ occurrenceCount: -1 })
+      .limit(5) 
+      .select('trendingSearchTerm occurrenceCount') 
 
     res.status(200).json({
       success: true,
