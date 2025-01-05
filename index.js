@@ -37,6 +37,8 @@ if (USE_REDIS) {
   createRedisClient()
 }
 
+app.set('trust proxy', 1)
+
 const globalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 100,
