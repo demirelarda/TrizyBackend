@@ -9,15 +9,18 @@ exports.createPaymentIntent = async (req, res) => {
     const userId = req.user.id
     const cart = await Cart.findOne({ ownerId: userId }).populate({
       path: 'items.productId',
-      select: 'price stockCount title',
+      select: 'price salePrice stockCount title',
     })
+
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Cart is empty. Add items to your cart before proceeding to payment.',
       })
     }
+
     let totalAmount = 0
+
     for (const item of cart.items) {
       if (item.quantity > item.productId.stockCount) {
         return res.status(400).json({
@@ -25,14 +28,35 @@ exports.createPaymentIntent = async (req, res) => {
           message: `Insufficient stock for product: ${item.productId.title}`,
         })
       }
-      totalAmount += item.quantity * item.productId.price
+
+      const price = item.productId.salePrice ?? item.productId.price
+
+      if (typeof price !== 'number') {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid price for product: ${item.productId.title}`,
+        })
+      }
+
+      totalAmount += item.quantity * price
     }
+
+    if (typeof cart.cargoFee !== 'number' || cart.cargoFee < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid cargo fee. Please check your cart.',
+      })
+    }
+
+    totalAmount += cart.cargoFee
+
     if (totalAmount <= 0) {
       return res.status(400).json({
         success: false,
         message: 'Invalid total amount. Please check your cart.',
       })
     }
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(totalAmount * 100),
       currency: 'usd',
@@ -45,6 +69,7 @@ exports.createPaymentIntent = async (req, res) => {
         cartId: cart._id.toString(),
       },
     })
+
     res.status(200).json({
       success: true,
       paymentIntent: {
@@ -53,6 +78,7 @@ exports.createPaymentIntent = async (req, res) => {
       },
     })
   } catch (error) {
+    console.error('Error creating payment intent:', error)
     res.status(500).json({
       success: false,
       message: 'Failed to create payment intent',
@@ -67,18 +93,25 @@ exports.fetchCartAndCreateOrder = async (userId, paymentIntent) => {
     if (!defaultAddress) {
       return { success: false, message: 'Default address not found' }
     }
+
     const cart = await Cart.findOne({ ownerId: userId }).populate({
       path: 'items.productId',
-      select: 'price title stockCount',
+      select: 'price salePrice title stockCount',
     })
+
     if (!cart || cart.items.length === 0) {
       return { success: false, message: 'Cart is empty' }
     }
-    const orderItems = cart.items.map((item) => ({
-      productId: item.productId._id,
-      quantity: item.quantity,
-      price: item.productId.price,
-    }))
+
+    const orderItems = cart.items.map((item) => {
+      const price = item.productId.salePrice ?? item.productId.price // Use salePrice if available
+      return {
+        productId: item.productId._id,
+        quantity: item.quantity,
+        price,
+      }
+    })
+
     const newOrder = new Order({
       userId: userId,
       deliveryAddress: defaultAddress._id,
@@ -88,19 +121,26 @@ exports.fetchCartAndCreateOrder = async (userId, paymentIntent) => {
       status: 'pending',
       items: orderItems,
     })
+
     await newOrder.save()
+
+    // Clear the cart
     cart.items = []
     await cart.save()
+
     for (const item of orderItems) {
       const product = await Product.findById(item.productId)
       if (product) {
         if (product.stockCount < item.quantity) {
-          throw new Error(`Insufficient stock for product ${product.title} (ID: ${item.productId})`)
+          throw new Error(
+            `Insufficient stock for product ${product.title} (ID: ${item.productId})`
+          )
         }
         product.stockCount -= item.quantity
         await product.save()
       }
     }
+
     return { success: true, order: newOrder }
   } catch (error) {
     return { success: false, message: error.message }

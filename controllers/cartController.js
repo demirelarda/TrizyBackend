@@ -23,11 +23,10 @@ exports.getCart = async (req, res) => {
   try {
     const userId = req.user.id
 
-    const cart = await Cart.findOne({ ownerId: userId })
-      .populate({
-        path: 'items.productId',
-        select: 'imageURLs title cargoWeight stockCount price',
-      })
+    const cart = await Cart.findOne({ ownerId: userId }).populate({
+      path: 'items.productId',
+      select: 'imageURLs title cargoWeight stockCount price salePrice',
+    })
 
     if (!cart) {
       return res.status(404).json({
@@ -42,7 +41,7 @@ exports.getCart = async (req, res) => {
       imageURL: item.productId.imageURLs[0] || null,
       cargoWeight: item.productId.cargoWeight,
       stockCount: item.productId.stockCount,
-      price: item.productId.price,
+      price: item.productId.salePrice ?? item.productId.price, // Use salePrice if availabl else fallback to price
       quantity: item.quantity,
     }))
 
@@ -54,9 +53,9 @@ exports.getCart = async (req, res) => {
         ownerId: cart.ownerId,
         items: transformedItems,
         updatedAt: cart.updatedAt,
-        cargoFee: cargoFee
+        cargoFee: cargoFee,
       },
-      cargoFeeThreshold: CARGO_FEE_THRESHOLD
+      cargoFeeThreshold: CARGO_FEE_THRESHOLD,
     })
   } catch (error) {
     console.error('Error fetching cart:', error)
@@ -73,7 +72,7 @@ const getTransformedCart = async (userId) => {
   try {
     const cart = await Cart.findOne({ ownerId: userId }).populate({
       path: "items.productId",
-      select: "imageURLs title cargoWeight stockCount price",
+      select: "imageURLs title cargoWeight stockCount price salePrice",
     })
 
     if (!cart) {
@@ -86,9 +85,14 @@ const getTransformedCart = async (userId) => {
       imageURL: item.productId.imageURLs[0] || null,
       cargoWeight: item.productId.cargoWeight,
       stockCount: item.productId.stockCount,
-      price: item.productId.price,
+      price: item.productId.salePrice ?? item.productId.price, // Use salePrice if available, else normal price
       quantity: item.quantity,
     }))
+
+    const updatedCargoFee = calculateCargoFee(cart)
+
+    cart.cargoFee = updatedCargoFee
+    await cart.save()
 
     return {
       success: true,
@@ -96,12 +100,16 @@ const getTransformedCart = async (userId) => {
         ownerId: cart.ownerId,
         items: transformedItems,
         updatedAt: cart.updatedAt,
-        cargoFee: calculateCargoFee(cart)
+        cargoFee: updatedCargoFee,
       },
     }
   } catch (error) {
     console.error("Error fetching and transforming cart:", error)
-    return { success: false, message: "Failed to fetch cart", error: error.message }
+    return {
+      success: false,
+      message: "Failed to fetch cart",
+      error: error.message,
+    }
   }
 }
 
@@ -331,7 +339,7 @@ exports.addItemToCartOnFeed = async (req, res) => {
     await cart.save()
     await cart.populate({
       path: 'items.productId',
-      select: 'price',
+      select: 'price salePrice',
     })
 
     cart.cargoFee = calculateCargoFee(cart)
@@ -394,10 +402,12 @@ const calculateCargoFee = (cart) => {
   }
 
   const totalAmount = cart.items.reduce((sum, item) => {
-    if (!item.productId || typeof item.productId.price !== "number") {
-      throw new Error("Item price is missing or invalid")
+    if (!item.productId || (typeof item.productId.price !== "number" && typeof item.productId.salePrice !== "number")) {
+      throw new Error("Item price or salePrice is missing or invalid")
     }
-    return sum + item.quantity * item.productId.price
+
+    const price = item.productId.salePrice ?? item.productId.price
+    return sum + item.quantity * price
   }, 0)
 
   return totalAmount > CARGO_FEE_THRESHOLD ? 0 : CARGO_FEE
