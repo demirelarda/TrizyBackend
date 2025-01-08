@@ -84,16 +84,22 @@ exports.getProductsByCategoryId = async (req, res) => {
     const filters = { category: { $in: allCategoryIds } }
 
     if (minPrice || maxPrice) {
-      filters.price = {}
-      if (minPrice) filters.price.$gte = parseFloat(minPrice)
-      if (maxPrice) filters.price.$lte = parseFloat(maxPrice)
+      filters.$or = []
+      const priceFilter = {}
+      if (minPrice) priceFilter.$gte = parseFloat(minPrice)
+      if (maxPrice) priceFilter.$lte = parseFloat(maxPrice)
+
+      filters.$or.push({ salePrice: priceFilter })
+      filters.$or.push({ $and: [{ salePrice: null }, { price: priceFilter }] })
     }
 
     if (exactRatings) {
       const ratingsArray = exactRatings.split(",").map(Number)
-      filters.averageRating = { $in: ratingsArray.flatMap(rating => {
-        return Array.from({ length: 10 }, (_, i) => rating + i * 0.1)
-      }) }
+      filters.averageRating = {
+        $in: ratingsArray.flatMap((rating) => {
+          return Array.from({ length: 10 }, (_, i) => rating + i * 0.1)
+        }),
+      }
     }
 
     if (minRatingCount || maxRatingCount) {
@@ -109,8 +115,14 @@ exports.getProductsByCategoryId = async (req, res) => {
     }
 
     const sortOptions = {}
-    if (sortBy === "priceAsc") sortOptions.price = 1
-    if (sortBy === "priceDesc") sortOptions.price = -1
+    if (sortBy === "priceAsc") {
+      sortOptions.salePrice = 1
+      sortOptions.price = 1
+    }
+    if (sortBy === "priceDesc") {
+      sortOptions.salePrice = -1
+      sortOptions.price = -1
+    }
     if (sortBy === "ratingCountDesc") sortOptions.reviewCount = -1
     if (sortBy === "likeCountDesc") sortOptions.likeCount = -1
 
@@ -215,9 +227,13 @@ exports.searchProducts = async (req, res) => {
     }
 
     if (minPrice || maxPrice) {
-      searchFilter.price = {}
-      if (minPrice) searchFilter.price.$gte = parseFloat(minPrice)
-      if (maxPrice) searchFilter.price.$lte = parseFloat(maxPrice)
+      searchFilter.$or = []
+      const priceFilter = {}
+      if (minPrice) priceFilter.$gte = parseFloat(minPrice)
+      if (maxPrice) priceFilter.$lte = parseFloat(maxPrice)
+
+      searchFilter.$or.push({ salePrice: priceFilter })
+      searchFilter.$or.push({ $and: [{ salePrice: null }, { price: priceFilter }] })
     }
 
     if (exactRatings) {
@@ -242,8 +258,14 @@ exports.searchProducts = async (req, res) => {
     }
 
     const sortOptions = {}
-    if (sortBy === "priceAsc") sortOptions.price = 1
-    if (sortBy === "priceDesc") sortOptions.price = -1
+    if (sortBy === "priceAsc") {
+      sortOptions.salePrice = 1
+      sortOptions.price = 1
+    }
+    if (sortBy === "priceDesc") {
+      sortOptions.salePrice = -1
+      sortOptions.price = -1
+    }
     if (sortBy === "ratingCountDesc") sortOptions.reviewCount = -1
     if (sortBy === "likeCountDesc") sortOptions.likeCount = -1
 
