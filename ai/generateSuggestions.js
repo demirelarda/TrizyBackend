@@ -79,14 +79,14 @@ const getPurchaseHistory = async (userId) => {
       throw new Error('User ID is required')
     }
 
-    const deliveredOrders = await Order.find({
+    const userOrders = await Order.find({
       userId,
-      status: 'delivered',
+      status: { $in: ['pending', 'shipping', 'delivered'] },
     })
       .select('items')
       .lean()
 
-    const productIds = deliveredOrders
+    const productIds = userOrders
       .flatMap((order) => order.items.map((item) => item.productId))
 
     if (productIds.length === 0) {
@@ -94,12 +94,13 @@ const getPurchaseHistory = async (userId) => {
       return ''
     }
 
+   
     const products = await Product.find({ _id: { $in: productIds } })
-      .select('title') 
+      .select('title') // Fetch only the product titles
       .lean()
 
+    // Create a comma separated string of product titles
     const purchaseHistory = products.map((product) => product.title).join(', ')
-
 
     return purchaseHistory
   } catch (error) {
