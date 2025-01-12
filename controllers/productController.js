@@ -6,6 +6,7 @@ const ProductView = require('../models/ProductView')
 const Like = require('../models/Like')
 const { USE_REDIS } = require('../config/env')
 const createRedisClient = require('../services/redisClient')
+const BestOfProduct = require('../models/BestOfProduct')
 
 const ObjectId = mongoose.Types.ObjectId
 
@@ -427,6 +428,53 @@ exports.getLikedProducts = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'An error occurred while fetching liked products.',
+      error: error.message,
+    })
+  }
+}
+
+exports.getBestOfProducts = async (req, res) => {
+  try {
+    const { period = 'week', page = 1, limit = 10 } = req.query
+
+    const validPeriod = period === 'month' ? 'month' : 'week'
+
+    const bestOfProduct = await BestOfProduct.findOne({ period: validPeriod })
+      .sort({ startDate: -1 })
+      .exec()
+
+    if (!bestOfProduct) {
+      return res.status(404).json({
+        success: false,
+        message: `No BestOfProduct found for the period: ${validPeriod}`,
+      })
+    }
+
+    const productIds = bestOfProduct.productIds
+
+    const products = await Product.find({ _id: { $in: productIds } }).exec()
+
+    const transformedProducts = products.map((product) => ({
+      ...product.toObject(),
+      tags: [],
+      description: "",
+    }))
+
+    res.status(200).json({
+      success: true,
+      period: validPeriod,
+      products: transformedProducts,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(productIds.length / limit),
+        totalProducts: productIds.length,
+      },
+    })
+  } catch (error) {
+    console.error('Error fetching BestOfProducts:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch BestOfProducts',
       error: error.message,
     })
   }
