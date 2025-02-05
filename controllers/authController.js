@@ -42,7 +42,7 @@ exports.createUser = async (req, res) => {
         emailVerified: savedUser.emailVerified,
       },
       process.env.JWT_SEC,
-      { expiresIn: "1h" }
+      //{ expiresIn: "1h" }
     )
 
     const refreshToken = jwt.sign(
@@ -50,7 +50,7 @@ exports.createUser = async (req, res) => {
         id: savedUser._id,
       },
       process.env.JWT_REFRESH_SEC,
-      { expiresIn: "7d" }
+      //{ expiresIn: "7d" }
     )
 
     savedUser.refreshToken = refreshToken
@@ -96,7 +96,7 @@ exports.loginUser = async (req, res) => {
         emailVerified: user.emailVerified,
       },
       process.env.JWT_SEC,
-      { expiresIn: "1h" }
+      //{ expiresIn: "1h" }
     )
 
     let refreshToken
@@ -107,7 +107,9 @@ exports.loginUser = async (req, res) => {
       refreshToken = user.refreshToken
     } catch (error) {
       // If the token has expired, create a new refresh token
-      refreshToken = jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SEC, { expiresIn: "7d" })
+      refreshToken = jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SEC, 
+        //{ expiresIn: "7d" }
+      )
       user.refreshToken = refreshToken
       await user.save()
     }
@@ -155,13 +157,13 @@ exports.refreshToken = async (req, res) => {
     const newAccessToken = jwt.sign(
       { id: user._id, email: user.email },
       process.env.JWT_SEC,
-      { expiresIn: "1h" }
+      //{ expiresIn: "1h" }
     )
 
     const newRefreshToken = jwt.sign(
       { id: user._id },
       process.env.JWT_REFRESH_SEC,
-      { expiresIn: "7d" }
+      //{ expiresIn: "7d" }
     )
 
     user.refreshToken = newRefreshToken
@@ -235,13 +237,13 @@ exports.checkTokens = async (req, res) => {
             emailVerified: user.emailVerified,
           },
           process.env.JWT_SEC,
-          { expiresIn: "1h" }
+          //{ expiresIn: "1h" }
         )
 
         const newRefreshToken = jwt.sign(
           { id: user._id },
           process.env.JWT_REFRESH_SEC,
-          { expiresIn: "7d" }
+          //{ expiresIn: "7d" }
         )
 
         user.refreshToken = newRefreshToken

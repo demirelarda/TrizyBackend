@@ -12,7 +12,7 @@ TrizyBackend is the backend for [Trizy mobile app](https://github.com/demirelard
 - [Installation](#installation)
 - [Running Locally](#running-locally)
 - [Deploying](#deploying)
-- API Documentation (Will be added soon)
+- [API Documentation](#api-documentation)
 - [License](#license)
 
 ---
@@ -244,6 +244,10 @@ You can deploy to platforms like **AWS**, **Railway**, **Heroku**, or **Vercel**
 5. **Deploy**:
    Railway will automatically detect your Node.js project and deploy it.
 
+
+## API Documentation
+- [A basic documentation created in postman](https://documenter.getpostman.com/view/23484413/2sAYX6p1xQ)
+- A more detailed version may be added in the future.
 
 
 ---
