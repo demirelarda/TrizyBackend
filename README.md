@@ -246,9 +246,8 @@ You can deploy to platforms like **AWS**, **Railway**, **Heroku**, or **Vercel**
 
 
 ## API Documentation
-- [A basic documentation created in postman](https://documenter.getpostman.com/view/23484413/2sAYX6p1xQ)
+- [View API Documentation on Postman](https://documenter.getpostman.com/view/23484413/2sAYX6p1xQ)
 - A more detailed version may be added in the future.
-
 
 ---
 
